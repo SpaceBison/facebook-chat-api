@@ -33,19 +33,9 @@ public interface FacebookApi {
                        @Field("default_persistent") int defaultPersistent,
                        @FieldMap Map<String, String> formData);
 
-    /*
+    
     @FormUrlEncoded
-    @POST("login")
-    Call<String> login(@Query("login_attempt") int loginAttempt,
-                       @Query("lwv") int lwv,
-                       @Field("lsd") String lsd,
-                       @Field("lgndim") String lgndim,
-                       @Field("email") String email,
-                       @Field(value = "pass", encoded = true) String pass,
-                       @Field("default_persistent") int defaultPersistent,
-                       @Field("lgnrnd") String lgnrd,
-                       @Field("locale") String locale,
-                       @Field("timezone") int timezone,
-                       @Field("lgnjs") long lgnjs);
-                       */
+    @POST("chat/user_info_all")
+    Call<String> userInfoAll(@Field("viewer") String userId);
+    
 }

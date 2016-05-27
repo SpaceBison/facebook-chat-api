@@ -1,7 +1,6 @@
 package org.spacebison.facebookchatapi.api;
 
 import com.gargoylesoftware.htmlunit.WebClient;
-import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.WebResponse;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
@@ -11,6 +10,7 @@ import com.gargoylesoftware.htmlunit.util.NameValuePair;
 
 import org.spacebison.util.RegexUtils;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 import okhttp3.Cookie;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.scalars.ScalarsConverterFactory;
 
@@ -43,7 +44,7 @@ public class FacebookChat {
         mCredentials = credentials;
     }
 
-    public void login() throws java.io.IOException {
+    public String login() throws java.io.IOException {
         HtmlPage loginPage = webClient.getPage("https://www.facebook.com");
         HtmlForm loginForm = (HtmlForm) loginPage.getElementById("login_form");
 
@@ -58,15 +59,6 @@ public class FacebookChat {
         HtmlPage loggedIn = submitButton.click();
         WebResponse webResponse = loggedIn.getWebResponse();
 
-        System.out.println("#### Request ####");
-        WebRequest webRequest = loggedIn.getWebResponse().getWebRequest();
-
-        System.out.println(webRequest.getRequestBody());
-
-        for (NameValuePair nvp : webRequest.getRequestParameters()) {
-            System.out.println(nvp.toString());
-        }
-
         System.out.println("Loaded " + loggedIn.getUrl());
         System.out.println("Title: " + loggedIn.getTitleText());
         System.out.println("Code: " + webResponse.getStatusCode());
@@ -75,91 +67,67 @@ public class FacebookChat {
         for (NameValuePair nvp : webResponse.getResponseHeaders()) {
             System.out.println(nvp.toString());
         }
-        System.out.println("\n####Body: ####\n" + webResponse.getContentAsString());
+        //System.out.println("\n####Body: ####\n" + webResponse.getContentAsString());
 
         Set<com.gargoylesoftware.htmlunit.util.Cookie> cookies = webClient.getCookies(new URL(FacebookApi.BASE_URL));
 
+        String userId = null;
         ArrayList<Cookie> newCookies = new ArrayList<>(cookies.size());
         HttpUrl httpUrl = HttpUrl.parse(FacebookApi.BASE_URL);
         for (com.gargoylesoftware.htmlunit.util.Cookie c : cookies) {
-            System.out.println(c.toString());
+            System.out.println("Cookie: " + c.toString());
             newCookies.add(Cookie.parse(httpUrl, c.toString()));
+            if ("c_user".equals(c.getName())) {
+                userId = c.getValue();
+                System.out.println("Logged userId: " + userId);
+            }
         }
         mOkHttpClient.cookieJar().saveFromResponse(httpUrl, newCookies);
 
-        //loginFormParams.put("email", email);
-        //loginFormParams.put("pass", pass);
+        return userId;
+    }
 
-/*
-        Response<String> reconnect = mFacebookApi.reconnect(6).execute();
-        System.out.println("Reconnect: " + RetrofitUtils.toString(reconnect));
-
-        Response<String> secondMainPage = mFacebookApi.mainPage().execute();
-
-        String body = secondMainPage.body();
-
-        System.out.println(body);
-
-        Matcher matcher = MAIN_PAGE_LOGIN_FORM.matcher(body);
-        matcher.find();
-        String formString = matcher.group();
-
-        System.out.println(formString.replace("><", "\n"));
-
-        HashMap<String, String> formMap = new HashMap<>();
-
-        try {
-            DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-            Document document = db.parse(new ByteArrayInputStream(formString.getBytes()));
-            Element loginForm = document.getDocumentElement();
-            NodeList childNodes = loginForm.getChildNodes();
-
-            for (int i = 0; i < childNodes.getLength(); ++i) {
-                Node item = childNodes.item(i);
-                NamedNodeMap attributes = item.getAttributes();
-                Node typeItem = attributes.getNamedItem("type");
-                String type = typeItem == null ? "" : typeItem.getNodeValue();
-                Node nameItem = attributes.getNamedItem("name");
-                String name = nameItem == null ? "" : nameItem.getNodeValue();
-                Node valueItem = attributes.getNamedItem("value");
-                String value = valueItem == null ? "" : valueItem.getNodeValue();
-
-                System.out.println(type + " " + name + "=" + value);
-
-                if ("hidden".equalsIgnoreCase(type)) {
-                    formMap.put(name, value);
-                }
-            }
-        } catch (ParserConfigurationException e) {
-            e.printStackTrace();
-        } catch (SAXException e) {
-            e.printStackTrace();
-        }
-*/
+    public void getFriendsList(String userId) throws IOException {
+        Response<String> pull = mEdgeChatFacebookApi.pull(
+                "p_" + userId,
+                1,
+                -2,
+                "4fdb6d8",
+                "3ttw",
+                "y",
+                "fresh",
+                5,
+                userId,
+                userId,
+                1,
+                "FRC",
+                "active",
+                1,
+                8,
+                0).execute();
 
         /*
-        String lsd = getLsd(body);
-        String lgnrnd = getLgnrnd(body);
-        String lgndim = DatatypeConverter.printBase64Binary("{\"w\":1440,\"h\":900,\"aw\":1440,\"ah\":834,\"c\":24}".getBytes("UTF-8"));
+        channel:p_100011911477064
+seq:0
+partition:-2
+clientid:489858ef
+cb:3ttw
+idle:0
+qp:y
+cap:8
+pws:fresh
+isq:5
+msgs_recv:0
+uid:100011911477064
+viewer_uid:100011911477064
+request_batch:1
+msgr_region:FRC
+state:active
+         */
 
-        System.out.println("LSD: " + lsd);
-        System.out.println("LGNRND: " + lgnrnd);
-        System.out.println("LGNDIM: " + lgndim);
-        */
-
-       // Call<String> loginCall = mFacebookApi.login(1, 110, mCredentials.getEmail(), mCredentials.getPassword(), 1, formData);
-       // Response<String> login = loginCall.execute();
-//        System.out.println("login URL: " + loginCall.request().url());
-//        System.out.println("login headers: " + loginCall.request().headers().toMultimap().size());
-//        System.out.println("login cookies: " + mOkHttpClient.cookieJar().loadForRequest(loginCall.request().url()));
-//        System.out.println("login BODY " + RetrofitUtils.bodyToString(loginCall.request()));
-       // System.out.println("\n#############\n");
-      //  System.out.println("RESPONSE: " + RetrofitUtils.toString(login));
-
-        /*
-        Response<String> reconnect = mFacebookApi.reconnect(6).execute();
-        System.out.println("Cookies: " + Cookie.parseAll(HttpUrl.parse(""), reconnect.headers()));
-        */
+        System.out.println("FRIENDS");
+        System.out.println(pull.code());
+        System.out.println(pull.headers());
     }
 
     private void loadCookiesFromMainPage(String body) {
