@@ -31,17 +31,33 @@ public interface FacebookApi {
                            @Query("__rev") int rev,
                            @Query("fb_dtsg") String fbDtsg);
 
-    /*
-@Query("__user:100011911477064
-@Query("__a:1
-@Query("__dyn:5V5yAW8-aFoAwmgDxKy1l0AhEK5EK8GAEG8zQC-C26m6oDAyoeAq8zUK5U4e2O3J1Zi28cZ1eUPBKuEjKeCwxxW3Ouum2SUpGqewIxWcx278mxK229yoOmmEK48hw
-@Query("__req:3
-@Query("__be:0
-@Query("__pc:PHASED:DEFAULT
-@Query("__rev:2362226
-@Query("reason:6
-@Query("fb_dtsg:AQG15xAkWyi4:AQGdWVFDl0UI
-     */
+    @FormUrlEncoded
+    @POST("ajax/mercury/send_messages.php?")
+    Call<String> sendMessages(@Query("dpr") int dpr,
+                              @Field("client") String client,
+                              @Field("__user") String user,
+                              @Field("__a") int a,
+                              @Field("__dyn") String dyn,
+                              @Field("__req") String req,
+                              @Field("__be") int be,
+                              @Field("__pc") String pc,
+                              @Field("fb_dtsg") String fbDtsg,
+                              @Field("ttstamp") String timestamp,
+                              @Field("__rev") String rev,
+                              @FieldMap Map<String, String> messageBatches);
+
+        /*
+@Field("client") :mercury
+@Field("__user") :1068646706
+@Field("__a") :1
+@Field("__dyn") :5V5yAW8-aFoAwmgDxyIGzGomyp9EbEyGgS8zCC-C26m6oKewWhEyfyUnwgUb8f8vkwy3fgjKcDKuEjKeCxicxW3uiuum2SUpGqewIUsz8gCxm5ErwwyoCcBBGbx24o
+@Field("__req") :1t
+@Field("__be") :0
+@Field("__pc") :PHASED") :DEFAULT
+@Field("fb_dtsg") :AQEpB0Jmiuqw") :AQGEJPoe8gKB
+@Field("ttstamp") :265816911266487410910511711311958658171697480111101561037566
+@Field("__rev") :2362226
+         */
 
     @FormUrlEncoded
     @POST("login")
@@ -52,9 +68,9 @@ public interface FacebookApi {
                        @Field("default_persistent") int defaultPersistent,
                        @FieldMap Map<String, String> formData);
 
-    
+
     @FormUrlEncoded
     @POST("chat/user_info_all")
     Call<String> userInfoAll(@Field("viewer") String userId);
-    
+
 }
