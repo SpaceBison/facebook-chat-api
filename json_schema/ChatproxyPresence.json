@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "extends": { "$ref": "Ms.json" },
+  "properties": {
+    "buddyList": {
+      "type": "object",
+      "javaType": "java.util.Map<String, org.spacebison.facebookchatapi.generated.js2p.Buddy>"
+    },
+    "userIsIdle": {
+      "type": "boolean"
+    },
+    "chatNotif": {
+      "type": "integer"
+    },
+    "gamers": {
+      "type": "array",
+      "items": {}
+    }
+  }
+}

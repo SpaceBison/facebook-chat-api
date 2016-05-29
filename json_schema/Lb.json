@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "extends": { "$ref" : "FacebookEntity.json" },
+  "properties": {
+    "lb_info": {
+      "type": "object",
+      "properties": {
+        "sticky": {
+          "type": "string"
+        },
+        "pool": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

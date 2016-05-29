@@ -13,6 +13,7 @@ public class MainTest {
 
     @Test
     public void test() throws IOException {
-        mFacebookChat.login();
+        String userId = mFacebookChat.login();
+        mFacebookChat.getFriendsList(userId);
     }
 }

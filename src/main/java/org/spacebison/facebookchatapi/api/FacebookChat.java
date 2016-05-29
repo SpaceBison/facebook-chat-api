@@ -1,13 +1,13 @@
 package org.spacebison.facebookchatapi.api;
 
+import com.gargoylesoftware.htmlunit.BrowserVersion;
 import com.gargoylesoftware.htmlunit.WebClient;
-import com.gargoylesoftware.htmlunit.WebResponse;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlSubmitInput;
-import com.gargoylesoftware.htmlunit.util.NameValuePair;
 
+import org.spacebison.facebookchatapi.generated.js2p.Batch;
 import org.spacebison.util.RegexUtils;
 
 import java.io.IOException;
@@ -22,6 +22,8 @@ import java.util.regex.Pattern;
 import okhttp3.Cookie;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import retrofit2.Call;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.scalars.ScalarsConverterFactory;
@@ -34,10 +36,24 @@ public class FacebookChat {
     private static final Pattern MAIN_PAGE_LSD = Pattern.compile("\\[\\\"LSD\\\",\\[\\],\\{\\\"token\\\":\\\"(.*?)\\}");
     private static final Pattern MAIN_PAGE_LGNRND = Pattern.compile("name=\"lgnrnd\" value=\"(.*?)\"");
     private static final Pattern MAIN_PAGE_LOGIN_FORM = Pattern.compile("<form id=\"login_form\".*?</form>");
-    private final WebClient webClient = new WebClient();
-    private final OkHttpClient mOkHttpClient = new OkHttpClient.Builder().cookieJar(new SimpleCookieJar()).addInterceptor(new UserAgentInterceptor()).build();
-    private final FacebookApi mFacebookApi = new Retrofit.Builder().client(mOkHttpClient).baseUrl(FacebookApi.BASE_URL).addConverterFactory(ScalarsConverterFactory.create()).build().create(FacebookApi.class);
-    private final EdgeChatFacebookApi mEdgeChatFacebookApi = new Retrofit.Builder().client(mOkHttpClient).baseUrl(EdgeChatFacebookApi.BASE_URL).addConverterFactory(ScalarsConverterFactory.create()).build().create(EdgeChatFacebookApi.class);
+    private final WebClient webClient = new WebClient(BrowserVersion.CHROME);
+    private final OkHttpClient mOkHttpClient = new OkHttpClient.Builder()
+            .cookieJar(new SimpleCookieJar())
+            .addInterceptor(new UserAgentInterceptor())
+            .build();
+    private final FacebookApi mFacebookApi = new Retrofit.Builder()
+            .client(mOkHttpClient).baseUrl(FacebookApi.BASE_URL)
+            .addConverterFactory(ScalarsConverterFactory.create())
+            .addConverterFactory(FacebookEntityConverterFactory.create())
+            .build()
+            .create(FacebookApi.class);
+    private final EdgeChatFacebookApi mEdgeChatFacebookApi = new Retrofit.Builder()
+            .client(mOkHttpClient)
+            .baseUrl(EdgeChatFacebookApi.BASE_URL)
+            .addConverterFactory(ScalarsConverterFactory.create())
+            .addConverterFactory(FacebookEntityConverterFactory.create())
+            .build()
+            .create(EdgeChatFacebookApi.class);
     private final Credentials mCredentials;
 
     public FacebookChat(Credentials credentials) {
@@ -48,6 +64,7 @@ public class FacebookChat {
         HtmlPage loginPage = webClient.getPage("https://www.facebook.com");
         HtmlForm loginForm = (HtmlForm) loginPage.getElementById("login_form");
 
+        // TODO: 29.05.16 handle index out of bounds
         final HtmlSubmitInput submitButton = (HtmlSubmitInput) loginForm.getInputsByValue("Log In").get(0);
 
         HtmlInput emailInput = loginForm.getInputByName("email");
@@ -57,38 +74,45 @@ public class FacebookChat {
         passwordInput.setValueAttribute(mCredentials.getPassword());
 
         HtmlPage loggedIn = submitButton.click();
-        WebResponse webResponse = loggedIn.getWebResponse();
-
-        System.out.println("Loaded " + loggedIn.getUrl());
-        System.out.println("Title: " + loggedIn.getTitleText());
-        System.out.println("Code: " + webResponse.getStatusCode());
-        System.out.println("Message: " + webResponse.getStatusMessage());
-        System.out.println("headers:");
-        for (NameValuePair nvp : webResponse.getResponseHeaders()) {
-            System.out.println(nvp.toString());
-        }
-        //System.out.println("\n####Body: ####\n" + webResponse.getContentAsString());
+       // WebResponse webResponse = loggedIn.getWebResponse();
 
         Set<com.gargoylesoftware.htmlunit.util.Cookie> cookies = webClient.getCookies(new URL(FacebookApi.BASE_URL));
 
         String userId = null;
         ArrayList<Cookie> newCookies = new ArrayList<>(cookies.size());
         HttpUrl httpUrl = HttpUrl.parse(FacebookApi.BASE_URL);
+
         for (com.gargoylesoftware.htmlunit.util.Cookie c : cookies) {
             System.out.println("Cookie: " + c.toString());
             newCookies.add(Cookie.parse(httpUrl, c.toString()));
             if ("c_user".equals(c.getName())) {
                 userId = c.getValue();
-                System.out.println("Logged userId: " + userId);
+                System.out.println("Logged in userId: " + userId);
             }
         }
+
         mOkHttpClient.cookieJar().saveFromResponse(httpUrl, newCookies);
+
+        Call<String> reconnect = mFacebookApi.reconnect(6, userId, 1, "", 3, 0, "PHASED:DEFAULT", 0, "");
+
+        Request request = reconnect.request();
+        String method = request.method();
+        HttpUrl url = request.url();
+        System.out.println(method + ' ' + url);
+
+        for (int i = 0; i < url.querySize(); ++i) {
+            System.out.println("  " + url.queryParameterName(i) + " = " + url.queryParameterValue(i));
+        }
+
+        Response<String> execute = reconnect.execute();
+
+        System.out.println(execute.headers().toString());
 
         return userId;
     }
 
     public void getFriendsList(String userId) throws IOException {
-        Response<String> pull = mEdgeChatFacebookApi.pull(
+        Call<Batch> pullCall = mEdgeChatFacebookApi.pull(
                 "p_" + userId,
                 1,
                 -2,
@@ -104,31 +128,51 @@ public class FacebookChat {
                 "active",
                 1,
                 8,
-                0).execute();
+                0);
+        Request request = pullCall.request();
+        String method = request.method();
+        HttpUrl url = request.url();
+        System.out.println(method + ' ' + url);
 
-        /*
-        channel:p_100011911477064
-seq:0
-partition:-2
-clientid:489858ef
-cb:3ttw
-idle:0
-qp:y
-cap:8
-pws:fresh
-isq:5
-msgs_recv:0
-uid:100011911477064
-viewer_uid:100011911477064
-request_batch:1
-msgr_region:FRC
-state:active
-         */
+        for (int i = 0; i < url.querySize(); ++i) {
+            System.out.println("  " + url.queryParameterName(i) + " = " + url.queryParameterValue(i));
+        }
+
+        Response<Batch> pull = pullCall.execute();
 
         System.out.println("FRIENDS");
         System.out.println(pull.code());
         System.out.println(pull.headers());
+        System.out.println(pull.body());
     }
+    /*
+
+ c_user=100011911477064
+ csm=2
+datr=DWRJV3HpC9gyWHyNP-Nc8gZH
+ fr=0PNsAqm5z2VhVDd4b.AWWie-Cu98htf6mZ2w35JtA2xoU.BXSWQg.D4.AAA.0.0.AWVP5AN2
+ lu=ggVAL1UhIY6T6JpB5LOSX0cg
+ p=-2
+ pl=n
+ presence=EDvF3EtimeF1464427555EuserFA21B11911477064A2EstateFDutF0Et2F_5b_5dElm2FnullEuct2F1464426953BEtrFnullEtwF2524536875EatF1464427555220CEchFDp_5f1B11911477064F0CC
+ s=Aa55bMG_Qhv4V4Go.BXSWQh
+ sb=IGRJV8k6_-Ce3vT4mEfEDxWh
+ xs=196%3AcTqWewKVMaJw1g%3A2%3A1464427552%3A7592
+
+
+  _js_datr=DGNJV6lATqlek0nMlTnLxkI0; expires=Mon, 28 May 2018 11:21:33 GMT; domain=facebook.com; path=/
+  _js_reg_fb_gate=https%3A%2F%2Fweb.facebook.com%2F; domain=facebook.com; path=/
+  _js_reg_fb_ref=https%3A%2F%2Fweb.facebook.com%2F; domain=facebook.com; path=/
+  c_user=100011911477064; expires=Fri, 26 Aug 2016 11:21:34 GMT; domain=facebook.com; path=/; secure
+  csm=2; expires=Fri, 26 Aug 2016 11:21:34 GMT; domain=facebook.com; path=/
+  datr=DGNJV6lATqlek0nMlTnLxkI0; expires=Mon, 28 May 2018 11:21:34 GMT; domain=facebook.com; path=/; httponly
+  fr=0zGr3Mw9BNxu24dKs.AWXfZ-pZ5gObasx_VG2UXykVZJQ.BXSWMe.18.AAA.0.0.AWWt3ofx; expires=Fri, 26 Aug 2016 11:21:34 GMT; domain=facebook.com; path=/; httponly
+  lu=gg3avh7e00P5fZdheItC6yyQ; expires=Mon, 28 May 2018 11:21:34 GMT; domain=facebook.com; path=/; secure; httponly
+  pl=n; expires=Fri, 26 Aug 2016 11:21:34 GMT; domain=facebook.com; path=/; secure; httponly
+      s=Aa4DEBRjgybA2Ex8.BXSWMe; expires=Fri, 26 Aug 2016 11:21:34 GMT; domain=facebook.com; path=/; secure; httponly
+  sb=HmNJV2W2GtQSTib9v4fV7tM-; expires=Mon, 28 May 2018 11:21:34 GMT; domain=facebook.com; path=/; secure; httponly
+  xs=85%3A88rtc_Cc_bp36g%3A2%3A1464427294%3A7592; expires=Fri, 26 Aug 2016 11:21:34 GMT; domain=facebook.com; path=/; secure; httponly
+     */
 
     private void loadCookiesFromMainPage(String body) {
         List<String> cookiesFromMainPage = getCookiesFromMainPage(body);

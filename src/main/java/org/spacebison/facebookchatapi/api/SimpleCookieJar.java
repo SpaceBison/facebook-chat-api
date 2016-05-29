@@ -1,6 +1,7 @@
 package org.spacebison.facebookchatapi.api;
 
-import java.util.ArrayList;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -13,32 +14,67 @@ import okhttp3.HttpUrl;
  * Created by cmb on 23.05.16.
  */
 public class SimpleCookieJar implements CookieJar {
-    private final HashMap<HttpUrl, ArrayList<Cookie>> mMap = new HashMap<>();
+    private final HashMap<String, HashMap<String, Cookie>> mMap = new HashMap<>();
 
     @Override
     public void saveFromResponse(HttpUrl httpUrl, List<Cookie> list) {
-        System.out.println("Save for " + httpUrl + " : " + list);
-        if (!mMap.containsKey(httpUrl)) {
-            mMap.put(httpUrl, new ArrayList<>(list));
+        String reverseDomain = getReverseDomain(httpUrl);
+
+        System.out.println("Save for " + httpUrl + " (" + reverseDomain + "): ");
+
+        HashMap<String, Cookie> newCookieMap = new HashMap<>(list.size());
+
+        for (Cookie c : list) {
+            if ("deleted".equals(c.value()) || "".equals(c.value())) {
+                System.out.println("  delete cookie: " + toString(c));
+                mMap.get(reverseDomain).remove(c.name());
+            } else {
+                System.out.println("  " + toString(c));
+                newCookieMap.put(c.name(), c);
+            }
+        }
+
+        if (!mMap.containsKey(reverseDomain)) {
+            mMap.put(reverseDomain, newCookieMap);
         } else {
-            mMap.get(httpUrl).addAll(list);
+            mMap.get(reverseDomain).putAll(newCookieMap);
         }
     }
 
     @Override
     public List<Cookie> loadForRequest(HttpUrl httpUrl) {
         LinkedList<Cookie> cookies = new LinkedList<>();
-        String reverseHost = new StringBuilder(httpUrl.host()).reverse().toString();
-        String reverseDomain = reverseHost.substring(0, reverseHost.indexOf('.', reverseHost.indexOf('.') + 1));
+        String reverseDomain = getReverseDomain(httpUrl);
 
-        for (HttpUrl key : mMap.keySet()) {
-            String keyReverseHost = new StringBuilder(key.host()).reverse().toString();
+        for (String key : mMap.keySet()) {
 
-            if (keyReverseHost.startsWith(reverseDomain)) {
-                cookies.addAll(mMap.get(key));
+            if (key.startsWith(reverseDomain)) {
+                cookies.addAll(mMap.get(key).values());
             }
         }
-        System.out.println("Load for " + httpUrl + " : " + cookies);
+
+        System.out.println("Load for " + httpUrl + " (" + reverseDomain + "): ");
+
+        for (Cookie c : cookies) {
+            System.out.println("  " + toString(c));
+        }
+
         return cookies;
+    }
+
+    private String getReverseDomain(HttpUrl httpUrl) {
+        String reverseHost = new StringBuilder(httpUrl.host()).reverse().toString();
+        return reverseHost.substring(0, reverseHost.indexOf('.', reverseHost.indexOf('.') + 1));
+    }
+
+    private String toString(Cookie cookie) {
+        String value;
+        try {
+            value = URLDecoder.decode(cookie.value(), "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            //noinspection deprecation
+            value = URLDecoder.decode(cookie.value());
+        }
+        return cookie.name() + " = " + value;
     }
 }

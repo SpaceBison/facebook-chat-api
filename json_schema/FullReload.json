@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "extends": { "$ref": "FacebookEntity.json" },
+  "properties": {
+    "seq": {
+      "type": "integer"
+    },
+    "u": {
+      "type": "integer"
+    },
+    "ms": {
+      "type": "array",
+      "items": {
+        "$ref": "Ms.json"
+      }
+    }
+  }
+}

@@ -20,9 +20,28 @@ public interface FacebookApi {
     @GET("/")
     Call<String> mainPage();
 
-    @FormUrlEncoded
-    @POST("ajax/presence/reconnect.php")
-    Call<String> reconnect(@Field("reason") int reason);
+    @GET("ajax/presence/reconnect.php")
+    Call<String> reconnect(@Query("reason") int reason,
+                           @Query("__user") String user,
+                           @Query("__a") int a,
+                           @Query("__dyn") String dyn,
+                           @Query("__req") int req,
+                           @Query("__be") int be,
+                           @Query("__pc") String pc,
+                           @Query("__rev") int rev,
+                           @Query("fb_dtsg") String fbDtsg);
+
+    /*
+@Query("__user:100011911477064
+@Query("__a:1
+@Query("__dyn:5V5yAW8-aFoAwmgDxKy1l0AhEK5EK8GAEG8zQC-C26m6oDAyoeAq8zUK5U4e2O3J1Zi28cZ1eUPBKuEjKeCwxxW3Ouum2SUpGqewIxWcx278mxK229yoOmmEK48hw
+@Query("__req:3
+@Query("__be:0
+@Query("__pc:PHASED:DEFAULT
+@Query("__rev:2362226
+@Query("reason:6
+@Query("fb_dtsg:AQG15xAkWyi4:AQGdWVFDl0UI
+     */
 
     @FormUrlEncoded
     @POST("login")
